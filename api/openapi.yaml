@@ -1,0 +1,395 @@
+openapi: 3.0.3
+info:
+  title: Member Preferences API
+  description: Manage notification, display, and privacy preferences for members.
+  version: 1.0.0
+servers:
+  - url: http://localhost:8080
+    description: Local development
+paths:
+  /v1/preferences/{memberId}:
+    get:
+      operationId: getPreferences
+      summary: Get preferences for a member
+      tags: [Preferences]
+      parameters:
+        - name: memberId
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: '^[A-Za-z0-9_-]+$'
+            minLength: 1
+            maxLength: 64
+          example: usr_a1b2c3d4
+          description: Unique member identifier
+      responses:
+        '200':
+          description: Preferences for the member
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Preferences'
+              example:
+                memberId: usr_a1b2c3d4
+                theme: DARK
+                language: en-US
+                timezone: America/New_York
+                notifications:
+                  email: true
+                  sms: false
+                  push: true
+                privacy:
+                  profileVisibility: PUBLIC
+                  showOnlineStatus: false
+        '404':
+          description: Member not found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                type: about:blank
+                title: Not Found
+                status: 404
+                detail: No member found with id usr_notfound
+                instance: /v1/preferences/usr_notfound
+
+    put:
+      operationId: createOrReplacePreferences
+      summary: Create or replace all preferences for a member
+      tags: [Preferences]
+      parameters:
+        - name: memberId
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: '^[A-Za-z0-9_-]+$'
+            minLength: 1
+            maxLength: 64
+          example: usr_a1b2c3d4
+          description: Unique member identifier
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PreferencesInput'
+            example:
+              theme: LIGHT
+              language: fr-FR
+              timezone: Europe/Paris
+              notifications:
+                email: true
+                sms: true
+                push: false
+              privacy:
+                profileVisibility: CONTACTS_ONLY
+                showOnlineStatus: true
+      responses:
+        '200':
+          description: Preferences replaced
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Preferences'
+              example:
+                memberId: usr_a1b2c3d4
+                theme: LIGHT
+                language: fr-FR
+                timezone: Europe/Paris
+                notifications:
+                  email: true
+                  sms: true
+                  push: false
+                privacy:
+                  profileVisibility: CONTACTS_ONLY
+                  showOnlineStatus: true
+                createdAt: '2026-07-22T10:00:00Z'
+                updatedAt: '2026-07-22T14:30:00Z'
+        '201':
+          description: Preferences created for a new member
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Preferences'
+              example:
+                memberId: usr_newmember
+                theme: SYSTEM
+                language: en-US
+                timezone: UTC
+                notifications:
+                  email: true
+                  sms: false
+                  push: true
+                privacy:
+                  profileVisibility: PUBLIC
+                  showOnlineStatus: true
+                createdAt: '2026-07-22T14:30:00Z'
+                updatedAt: '2026-07-22T14:30:00Z'
+        '400':
+          description: Validation error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                type: about:blank
+                title: Validation Error
+                status: 400
+                detail: theme must be one of LIGHT, DARK, SYSTEM
+                instance: /v1/preferences/usr_a1b2c3d4
+        '422':
+          description: Unprocessable entity
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                type: about:blank
+                title: Unprocessable Entity
+                status: 422
+                detail: language fr-XX is not a recognized locale
+                instance: /v1/preferences/usr_a1b2c3d4
+
+    patch:
+      operationId: patchPreferences
+      summary: Partially update preferences for a member
+      tags: [Preferences]
+      parameters:
+        - name: memberId
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: '^[A-Za-z0-9_-]+$'
+            minLength: 1
+            maxLength: 64
+          example: usr_a1b2c3d4
+          description: Unique member identifier
+      requestBody:
+        required: true
+        content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PreferencesPatchInput'
+              example:
+                theme: DARK
+                notifications:
+                  sms: true
+      responses:
+        '200':
+          description: Preferences partially updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Preferences'
+              example:
+                memberId: usr_a1b2c3d4
+                theme: DARK
+                language: en-US
+                timezone: America/New_York
+                notifications:
+                  email: true
+                  sms: true
+                  push: true
+                privacy:
+                  profileVisibility: PUBLIC
+                  showOnlineStatus: false
+                createdAt: '2026-07-22T10:00:00Z'
+                updatedAt: '2026-07-22T14:45:00Z'
+        '400':
+          description: Validation error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                type: about:blank
+                title: Validation Error
+                status: 400
+                detail: JSON parse error - unrecognized field invalid_field
+                instance: /v1/preferences/usr_a1b2c3d4
+        '404':
+          description: Member not found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                type: about:blank
+                title: Not Found
+                status: 404
+                detail: No member found with id usr_notfound
+                instance: /v1/preferences/usr_notfound
+        '422':
+          description: Unprocessable entity
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                type: about:blank
+                title: Unprocessable Entity
+                status: 422
+                detail: privacy.profileVisibility must be one of PUBLIC, PRIVATE, CONTACTS_ONLY
+                instance: /v1/preferences/usr_a1b2c3d4
+
+components:
+  schemas:
+    Preferences:
+      type: object
+      description: Full preferences object including read-only timestamps
+      properties:
+        memberId:
+          type: string
+          pattern: '^[A-Za-z0-9_-]+$'
+          minLength: 1
+          maxLength: 64
+          description: Unique member identifier
+          example: usr_a1b2c3d4
+        theme:
+          type: string
+          enum: [LIGHT, DARK, SYSTEM]
+          description: UI color theme
+          example: DARK
+        language:
+          type: string
+          pattern: '^[a-z]{2}-[A-Z]{2}$'
+          description: IETF BCP 47 language tag
+          example: en-US
+        timezone:
+          type: string
+          pattern: '^[A-Za-z_]+/[A-Za-z_]+$'
+          description: IANA time zone identifier
+          example: America/New_York
+        notifications:
+          $ref: '#/components/schemas/Notifications'
+        privacy:
+          $ref: '#/components/schemas/Privacy'
+        createdAt:
+          type: string
+          format: date-time
+          description: Timestamp when preferences were first created
+          readOnly: true
+          example: '2026-07-22T10:00:00Z'
+        updatedAt:
+          type: string
+          format: date-time
+          description: Timestamp when preferences were last modified
+          readOnly: true
+          example: '2026-07-22T14:30:00Z'
+      required: [memberId, theme, language, timezone, notifications, privacy]
+
+    PreferencesInput:
+      type: object
+      description: Input payload for creating or replacing preferences
+      properties:
+        theme:
+          type: string
+          enum: [LIGHT, DARK, SYSTEM]
+          description: UI color theme
+          example: DARK
+        language:
+          type: string
+          pattern: '^[a-z]{2}-[A-Z]{2}$'
+          description: IETF BCP 47 language tag
+          example: en-US
+        timezone:
+          type: string
+          pattern: '^[A-Za-z_]+/[A-Za-z_]+$'
+          description: IANA time zone identifier
+          example: America/New_York
+        notifications:
+          $ref: '#/components/schemas/Notifications'
+        privacy:
+          $ref: '#/components/schemas/Privacy'
+      required: [theme, language, timezone, notifications, privacy]
+
+    PreferencesPatchInput:
+      type: object
+      description: Partial input payload for patching preferences (all fields optional)
+      properties:
+        theme:
+          type: string
+          enum: [LIGHT, DARK, SYSTEM]
+          description: UI color theme
+          example: DARK
+        language:
+          type: string
+          pattern: '^[a-z]{2}-[A-Z]{2}$'
+          description: IETF BCP 47 language tag
+          example: en-US
+        timezone:
+          type: string
+          pattern: '^[A-Za-z_]+/[A-Za-z_]+$'
+          description: IANA time zone identifier
+          example: America/New_York
+        notifications:
+          $ref: '#/components/schemas/Notifications'
+        privacy:
+          $ref: '#/components/schemas/Privacy'
+
+    Notifications:
+      type: object
+      description: Notification channel preferences
+      properties:
+        email:
+          type: boolean
+          description: Receive email notifications
+          example: true
+        sms:
+          type: boolean
+          description: Receive SMS notifications
+          example: false
+        push:
+          type: boolean
+          description: Receive push notifications
+          example: true
+      required: [email, sms, push]
+
+    Privacy:
+      type: object
+      description: Privacy settings
+      properties:
+        profileVisibility:
+          type: string
+          enum: [PUBLIC, PRIVATE, CONTACTS_ONLY]
+          description: Who can view the member profile
+          example: PUBLIC
+        showOnlineStatus:
+          type: boolean
+          description: Whether online status is visible to others
+          example: true
+      required: [profileVisibility, showOnlineStatus]
+
+    ErrorResponse:
+      type: object
+      description: RFC 7807 problem details
+      properties:
+        type:
+          type: string
+          format: uri
+          description: URI identifying the problem type
+          example: about:blank
+        title:
+          type: string
+          description: Short human-readable summary
+          example: Validation Error
+        status:
+          type: integer
+          description: HTTP status code
+          minimum: 100
+          maximum: 599
+          example: 400
+        detail:
+          type: string
+          description: Human-readable explanation specific to this occurrence
+          example: theme must be one of LIGHT, DARK, or SYSTEM
+        instance:
+          type: string
+          format: uri
+          description: URI identifying the specific occurrence
+          example: /v1/preferences/usr_a1b2c3d4
+      required: [type, title, status]
