@@ -1,7 +1,10 @@
-package com.example.memberpreferences.model;
+package com.example.memberpreferences.domain.dto;
 
 import jakarta.validation.constraints.NotNull;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
+
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public class Privacy {
 
     @NotNull
@@ -9,6 +12,13 @@ public class Privacy {
 
     @NotNull
     private Boolean showOnlineStatus;
+
+    public Privacy() {}
+
+    public Privacy(ProfileVisibility profileVisibility, Boolean showOnlineStatus) {
+        this.profileVisibility = profileVisibility;
+        this.showOnlineStatus = showOnlineStatus;
+    }
 
     public ProfileVisibility getProfileVisibility() { return profileVisibility; }
     public void setProfileVisibility(ProfileVisibility profileVisibility) { this.profileVisibility = profileVisibility; }

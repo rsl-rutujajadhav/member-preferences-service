@@ -1,7 +1,10 @@
-package com.example.memberpreferences.model;
+package com.example.memberpreferences.domain.dto;
 
 import jakarta.validation.constraints.NotNull;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
+
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public class Notifications {
 
     @NotNull
@@ -12,6 +15,14 @@ public class Notifications {
 
     @NotNull
     private Boolean push;
+
+    public Notifications() {}
+
+    public Notifications(Boolean email, Boolean sms, Boolean push) {
+        this.email = email;
+        this.sms = sms;
+        this.push = push;
+    }
 
     public Boolean getEmail() { return email; }
     public void setEmail(Boolean email) { this.email = email; }

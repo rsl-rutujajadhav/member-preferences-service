@@ -1,5 +1,8 @@
-package com.example.memberpreferences.model;
+package com.example.memberpreferences.domain.dto;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
+
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public class NotificationsPatch {
 
     private Boolean email;

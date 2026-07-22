@@ -1,11 +1,15 @@
-package com.example.memberpreferences.model;
+package com.example.memberpreferences.domain.dto;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
+
 import java.time.Instant;
 
-public class Preferences {
+import com.fasterxml.jackson.annotation.JsonInclude;
+
+@JsonInclude(JsonInclude.Include.NON_NULL)
+public class PreferencesResponse {
 
     @NotNull
     private String memberId;
@@ -32,10 +36,10 @@ public class Preferences {
     private Instant createdAt;
     private Instant updatedAt;
 
-    public Preferences() {}
+    public PreferencesResponse() {}
 
-    public Preferences(String memberId, Theme theme, String language, String timezone,
-                       Notifications notifications, Privacy privacy) {
+    public PreferencesResponse(String memberId, Theme theme, String language, String timezone,
+                               Notifications notifications, Privacy privacy) {
         this.memberId = memberId;
         this.theme = theme;
         this.language = language;
@@ -67,8 +71,4 @@ public class Preferences {
 
     public Instant getUpdatedAt() { return updatedAt; }
     public void setUpdatedAt(Instant updatedAt) { this.updatedAt = updatedAt; }
-
-    public enum Theme {
-        LIGHT, DARK, SYSTEM
-    }
 }

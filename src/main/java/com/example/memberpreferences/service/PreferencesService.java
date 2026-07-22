@@ -4,54 +4,43 @@ import java.time.Instant;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
-import org.springframework.web.server.ResponseStatusException;
 
-import com.example.memberpreferences.model.Notifications;
-import com.example.memberpreferences.model.NotificationsPatch;
-import com.example.memberpreferences.model.Preferences;
-import com.example.memberpreferences.model.PreferencesInput;
-import com.example.memberpreferences.model.PreferencesPatchInput;
-import com.example.memberpreferences.model.Privacy;
-import com.example.memberpreferences.model.PrivacyPatch;
+import com.example.memberpreferences.domain.dto.Notifications;
+import com.example.memberpreferences.domain.dto.NotificationsPatch;
+import com.example.memberpreferences.domain.dto.PreferencesInput;
+import com.example.memberpreferences.domain.dto.PreferencesPatchInput;
+import com.example.memberpreferences.domain.dto.PreferencesResponse;
+import com.example.memberpreferences.domain.dto.Privacy;
+import com.example.memberpreferences.domain.dto.PrivacyPatch;
+import com.example.memberpreferences.domain.dto.Theme;
 
 @Service
 public class PreferencesService {
 
-    private final Map<String, Preferences> store = new ConcurrentHashMap<>();
+    private final Map<String, PreferencesResponse> store = new ConcurrentHashMap<>();
 
-    public Preferences get(String memberId) {
-        Preferences prefs = store.get(memberId);
-        if (prefs == null) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND,
-                    "No member found with id " + memberId);
-        }
-        return prefs;
+    public PreferencesResponse get(String memberId) {
+        return store.computeIfAbsent(memberId, this::defaultPreferences);
     }
 
-    public Preferences createOrReplace(String memberId, PreferencesInput input) {
+    public PreferencesResponse createOrReplace(String memberId, PreferencesInput input) {
         Instant now = Instant.now();
-        Preferences prefs = new Preferences(memberId, input.getTheme(),
+        PreferencesResponse prefs = new PreferencesResponse(memberId, input.getTheme(),
                 input.getLanguage(), input.getTimezone(),
                 input.getNotifications(), input.getPrivacy());
-        Preferences existing = store.put(memberId, prefs);
-        if (existing != null) {
+        PreferencesResponse existing = store.put(memberId, prefs);
+        if (existing != null && existing.getCreatedAt() != null) {
             prefs.setCreatedAt(existing.getCreatedAt());
-            prefs.setUpdatedAt(now);
         } else {
             prefs.setCreatedAt(now);
-            prefs.setUpdatedAt(now);
         }
+        prefs.setUpdatedAt(now);
         return prefs;
     }
 
-    public Preferences patch(String memberId, PreferencesPatchInput input) {
-        Preferences existing = store.get(memberId);
-        if (existing == null) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND,
-                    "No member found with id " + memberId);
-        }
+    public PreferencesResponse patch(String memberId, PreferencesPatchInput input) {
+        PreferencesResponse existing = get(memberId);
         if (input.getTheme() != null) {
             existing.setTheme(input.getTheme());
         }
@@ -76,5 +65,15 @@ public class PreferencesService {
         }
         existing.setUpdatedAt(Instant.now());
         return existing;
+    }
+
+    private PreferencesResponse defaultPreferences(String memberId) {
+        PreferencesResponse prefs = new PreferencesResponse(memberId, Theme.SYSTEM,
+                "en-US", "UTC",
+                new Notifications(true, true, true),
+                new Privacy(Privacy.ProfileVisibility.PUBLIC, true));
+        prefs.setCreatedAt(null);
+        prefs.setUpdatedAt(null);
+        return prefs;
     }
 }

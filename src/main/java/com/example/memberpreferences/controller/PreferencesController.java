@@ -3,8 +3,6 @@ package com.example.memberpreferences.controller;
 import jakarta.validation.Valid;
 
 import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
-import org.springframework.http.ProblemDetail;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -14,9 +12,9 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.example.memberpreferences.model.Preferences;
-import com.example.memberpreferences.model.PreferencesInput;
-import com.example.memberpreferences.model.PreferencesPatchInput;
+import com.example.memberpreferences.domain.dto.PreferencesInput;
+import com.example.memberpreferences.domain.dto.PreferencesPatchInput;
+import com.example.memberpreferences.domain.dto.PreferencesResponse;
 import com.example.memberpreferences.service.PreferencesService;
 
 @RestController
@@ -30,20 +28,20 @@ public class PreferencesController {
     }
 
     @GetMapping("/{memberId}")
-    public Preferences getPreferences(@PathVariable String memberId) {
+    public PreferencesResponse getPreferences(@PathVariable String memberId) {
         return service.get(memberId);
     }
 
     @PutMapping("/{memberId}")
     @ResponseStatus(HttpStatus.OK)
-    public Preferences createOrReplacePreferences(
+    public PreferencesResponse createOrReplacePreferences(
             @PathVariable String memberId,
             @Valid @RequestBody PreferencesInput input) {
         return service.createOrReplace(memberId, input);
     }
 
     @PatchMapping("/{memberId}")
-    public Preferences patchPreferences(
+    public PreferencesResponse patchPreferences(
             @PathVariable String memberId,
             @Valid @RequestBody PreferencesPatchInput input) {
         return service.patch(memberId, input);

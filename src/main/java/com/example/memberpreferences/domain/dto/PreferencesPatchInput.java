@@ -1,11 +1,14 @@
-package com.example.memberpreferences.model;
+package com.example.memberpreferences.domain.dto;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Pattern;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
+
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public class PreferencesPatchInput {
 
-    private Preferences.Theme theme;
+    private Theme theme;
 
     @Pattern(regexp = "^[a-z]{2}-[A-Z]{2}$")
     private String language;
@@ -19,8 +22,8 @@ public class PreferencesPatchInput {
     @Valid
     private PrivacyPatch privacy;
 
-    public Preferences.Theme getTheme() { return theme; }
-    public void setTheme(Preferences.Theme theme) { this.theme = theme; }
+    public Theme getTheme() { return theme; }
+    public void setTheme(Theme theme) { this.theme = theme; }
 
     public String getLanguage() { return language; }
     public void setLanguage(String language) { this.language = language; }
