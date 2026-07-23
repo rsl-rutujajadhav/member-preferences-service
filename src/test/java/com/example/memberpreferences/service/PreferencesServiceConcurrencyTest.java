@@ -22,6 +22,8 @@ import com.example.memberpreferences.domain.dto.Theme;
 import com.example.memberpreferences.repository.InMemoryPreferencesRepository;
 import com.example.memberpreferences.repository.PreferencesRepository;
 
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
+
 class PreferencesServiceConcurrencyTest {
 
     private PreferencesService service;
@@ -30,7 +32,7 @@ class PreferencesServiceConcurrencyTest {
     void setUp() {
         PreferencesRepository repository = new InMemoryPreferencesRepository();
         PreferencesProperties properties = new PreferencesProperties();
-        service = new PreferencesService(repository, properties);
+        service = new PreferencesService(repository, properties, new SimpleMeterRegistry());
     }
 
     @Test

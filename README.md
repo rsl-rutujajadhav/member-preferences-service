@@ -177,6 +177,31 @@ The `dev` profile sets `preferences.patch.enabled: false`. When disabled, PATCH 
 
 All configuration properties are visible at `/actuator/configprops` at runtime.
 
+## Metrics
+
+Custom Micrometer counters and timers are registered per endpoint and visible at `/actuator/metrics`:
+
+| Metric | Type | Description |
+|--------|------|-------------|
+| `preferences.get.count` | Counter | Number of GET preference requests |
+| `preferences.put.count` | Counter | Number of PUT preference requests |
+| `preferences.patch.count` | Counter | Number of PATCH preference requests |
+| `preferences.get.duration` | Timer | Duration of GET preference requests |
+| `preferences.put.duration` | Timer | Duration of PUT preference requests |
+| `preferences.patch.duration` | Timer | Duration of PATCH preference requests |
+
+Spring Boot's built-in `http.server.requests` metric is also available.
+
+## Structured Logging
+
+Logs are emitted as JSON via Logstash encoder with a `correlationId` field. Every response includes an `X-Correlation-Id` header. If the client sends one via the request header, it is preserved; otherwise a UUID is generated.
+
+Example log line:
+
+```json
+{"timestamp":"...","logger":"...","message":"Getting preferences for member usr_a1b2c3d4","correlationId":"a1b2c3d4-...","level":"INFO"}
+```
+
 ## Validation Behavior
 
 The service validates:
@@ -208,6 +233,7 @@ Current test status:
 - HTTP integration tests for error responses (400, 404, validation details)
 - Feature flag test (PATCH disabled via `dev` profile returns 422)
 - Config properties binding and actuator `/configprops` exposure
+- Micrometer metrics (counters, timers) and structured JSON logging with correlation ID
 
 ## Project Structure
 
@@ -217,8 +243,10 @@ Current test status:
 - `src/main/java/.../config` – `@ConfigurationProperties` classes and feature flags
 - `src/main/java/.../domain/dto` – request/response models and error response DTO
 - `src/main/java/.../domain/exception` – custom exception types
+- `src/main/java/.../filter` – servlet filters (correlation ID)
 - `src/main/resources/application.yml` – default config
 - `src/main/resources/application-dev.yml` – dev profile override
+- `src/main/resources/logback-spring.xml` – structured JSON logging
 - `src/test/java` – test classes
 
 ## Notes
