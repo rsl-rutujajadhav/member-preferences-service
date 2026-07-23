@@ -24,6 +24,10 @@ public class PreferencesService {
         return store.computeIfAbsent(memberId, this::defaultPreferences);
     }
 
+    public boolean exists(String memberId) {
+        return store.containsKey(memberId);
+    }
+
     public PreferencesResponse createOrReplace(String memberId, PreferencesInput input) {
         Instant now = Instant.now();
         PreferencesResponse prefs = new PreferencesResponse(memberId, input.getTheme(),
