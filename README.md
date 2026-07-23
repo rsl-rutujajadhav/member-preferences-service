@@ -9,7 +9,8 @@ This service exposes a small in-memory preferences API for a single member. The 
 - Spring Boot 4.1.0
 - Spring Web MVC
 - Spring Validation
-- an in-memory `ConcurrentHashMap` store in the service layer
+- `ConcurrentHashMap` in-memory persistence via a dedicated repository layer
+- Thread-safe atomic operations for concurrent read/write
 - OpenAPI documentation via SpringDoc
 
 ## Base URL
@@ -135,16 +136,37 @@ Privacy visibility:
 - `PRIVATE`
 - `CONTACTS_ONLY`
 
+## Error Responses
+
+All errors are returned as JSON matching the RFC 7807 Problem Details format:
+
+| Status | Title | When |
+|--------|-------|------|
+| 400 | Validation Error | Invalid `memberId`, missing or invalid request body fields |
+| 400 | Malformed Request Body | Unparseable JSON or invalid enum values |
+| 404 | Not Found | Resource at the requested URL does not exist |
+| 500 | Internal Server Error | Unexpected server-side failure |
+
+Example error payload:
+
+```json
+{
+  "type": "about:blank",
+  "title": "Validation Error",
+  "status": 400,
+  "detail": "theme: must not be null; language: must not be null",
+  "instance": "/v1/preferences/usr_a1b2c3d4"
+}
+```
+
 ## Validation Behavior
 
 The service validates:
-- member ID path format
-- required request fields
-- language pattern
-- timezone pattern
+- member ID path format (`^[A-Za-z0-9_-]+$`, 1–64 chars)
+- required request fields (`@NotNull`)
+- language pattern (`^[a-z]{2}-[A-Z]{2}$`)
+- timezone pattern (`^[A-Za-z_]+/[A-Za-z_]+$`)
 - enum values for `theme` and `profileVisibility`
-
-Validation failures return a ProblemDetail-style error response.
 
 ## Running the Service
 
@@ -156,23 +178,26 @@ From the project root:
 
 ## Testing
 
-Run the current test suite:
+Run the full test suite:
 
 ```bash
 ./mvnw test
 ```
 
 Current test status:
-- One basic Spring Boot context test is present
-- Full HTTP integration tests for the REST endpoints are not yet implemented in the repository
+- Spring Boot context load test
+- Concurrency tests (concurrent patch, upsert, read isolation)
+- HTTP integration tests for error responses (400, 404, validation details)
 
 ## Project Structure
 
-- `src/main/java/.../controller` – REST endpoints
-- `src/main/java/.../service` – business logic and in-memory storage
-- `src/main/java/.../domain/dto` – request/response models
+- `src/main/java/.../controller` – REST endpoints and global error handler
+- `src/main/java/.../service` – business logic
+- `src/main/java/.../repository` – in-memory data access with thread-safe operations
+- `src/main/java/.../domain/dto` – request/response models and error response DTO
+- `src/main/java/.../domain/exception` – custom exception types
 - `src/test/java` – test classes
 
 ## Notes
 
-This service is currently an in-memory prototype and does not persist preferences to a database.
+This service is currently an in-memory prototype and does not persist preferences to a database. Concurrent access is safe via `ConcurrentHashMap.compute()` atomic operations.
