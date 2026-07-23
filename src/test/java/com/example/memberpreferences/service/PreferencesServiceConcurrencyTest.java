@@ -17,6 +17,7 @@ import com.example.memberpreferences.domain.dto.PreferencesInput;
 import com.example.memberpreferences.domain.dto.PreferencesPatchInput;
 import com.example.memberpreferences.domain.dto.PreferencesResponse;
 import com.example.memberpreferences.domain.dto.Privacy;
+import com.example.memberpreferences.config.PreferencesProperties;
 import com.example.memberpreferences.domain.dto.Theme;
 import com.example.memberpreferences.repository.InMemoryPreferencesRepository;
 import com.example.memberpreferences.repository.PreferencesRepository;
@@ -28,7 +29,8 @@ class PreferencesServiceConcurrencyTest {
     @BeforeEach
     void setUp() {
         PreferencesRepository repository = new InMemoryPreferencesRepository();
-        service = new PreferencesService(repository);
+        PreferencesProperties properties = new PreferencesProperties();
+        service = new PreferencesService(repository, properties);
     }
 
     @Test

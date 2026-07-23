@@ -159,6 +159,24 @@ Example error payload:
 }
 ```
 
+## Configuration
+
+Feature flags and service settings are managed via `@ConfigurationProperties` bound to `application.yml`.
+
+| Property | Default | Description |
+|----------|---------|-------------|
+| `preferences.patch.enabled` | `true` | Enables or disables the PATCH endpoint |
+
+To disable patching (e.g. during maintenance):
+
+```bash
+./mvnw spring-boot:run -Dspring-boot.run.profiles=dev
+```
+
+The `dev` profile sets `preferences.patch.enabled: false`. When disabled, PATCH requests return `422 Unprocessable Entity` with detail `"Patching preferences is currently disabled"` while GET and PUT continue working.
+
+All configuration properties are visible at `/actuator/configprops` at runtime.
+
 ## Validation Behavior
 
 The service validates:
@@ -188,14 +206,19 @@ Current test status:
 - Spring Boot context load test
 - Concurrency tests (concurrent patch, upsert, read isolation)
 - HTTP integration tests for error responses (400, 404, validation details)
+- Feature flag test (PATCH disabled via `dev` profile returns 422)
+- Config properties binding and actuator `/configprops` exposure
 
 ## Project Structure
 
 - `src/main/java/.../controller` – REST endpoints and global error handler
 - `src/main/java/.../service` – business logic
 - `src/main/java/.../repository` – in-memory data access with thread-safe operations
+- `src/main/java/.../config` – `@ConfigurationProperties` classes and feature flags
 - `src/main/java/.../domain/dto` – request/response models and error response DTO
 - `src/main/java/.../domain/exception` – custom exception types
+- `src/main/resources/application.yml` – default config
+- `src/main/resources/application-dev.yml` – dev profile override
 - `src/test/java` – test classes
 
 ## Notes

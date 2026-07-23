@@ -11,16 +11,20 @@ import com.example.memberpreferences.domain.dto.PreferencesPatchInput;
 import com.example.memberpreferences.domain.dto.PreferencesResponse;
 import com.example.memberpreferences.domain.dto.Privacy;
 import com.example.memberpreferences.domain.dto.PrivacyPatch;
+import com.example.memberpreferences.config.PreferencesProperties;
 import com.example.memberpreferences.domain.dto.Theme;
+import com.example.memberpreferences.domain.exception.UnprocessableEntityException;
 import com.example.memberpreferences.repository.PreferencesRepository;
 
 @Service
 public class PreferencesService {
 
     private final PreferencesRepository repository;
+    private final PreferencesProperties properties;
 
-    public PreferencesService(PreferencesRepository repository) {
+    public PreferencesService(PreferencesRepository repository, PreferencesProperties properties) {
         this.repository = repository;
+        this.properties = properties;
     }
 
     public PreferencesResponse get(String memberId) {
@@ -52,6 +56,9 @@ public class PreferencesService {
     }
 
     public PreferencesResponse patch(String memberId, PreferencesPatchInput input) {
+        if (!properties.getPatch().isEnabled()) {
+            throw new UnprocessableEntityException("Patching preferences is currently disabled");
+        }
         return repository.compute(memberId, existing -> {
             PreferencesResponse prefs;
             if (existing == null) {
