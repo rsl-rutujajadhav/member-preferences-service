@@ -20,6 +20,11 @@ public class Privacy {
         this.showOnlineStatus = showOnlineStatus;
     }
 
+    public Privacy(Privacy other) {
+        this.profileVisibility = other.profileVisibility;
+        this.showOnlineStatus = other.showOnlineStatus;
+    }
+
     public ProfileVisibility getProfileVisibility() { return profileVisibility; }
     public void setProfileVisibility(ProfileVisibility profileVisibility) { this.profileVisibility = profileVisibility; }
 

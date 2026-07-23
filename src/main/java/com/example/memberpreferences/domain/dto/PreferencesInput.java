@@ -28,6 +28,17 @@ public class PreferencesInput {
     @Valid
     private Privacy privacy;
 
+    public PreferencesInput() {}
+
+    public PreferencesInput(Theme theme, String language, String timezone,
+                            Notifications notifications, Privacy privacy) {
+        this.theme = theme;
+        this.language = language;
+        this.timezone = timezone;
+        this.notifications = notifications;
+        this.privacy = privacy;
+    }
+
     public Theme getTheme() { return theme; }
     public void setTheme(Theme theme) { this.theme = theme; }
 

@@ -24,6 +24,12 @@ public class Notifications {
         this.push = push;
     }
 
+    public Notifications(Notifications other) {
+        this.email = other.email;
+        this.sms = other.sms;
+        this.push = other.push;
+    }
+
     public Boolean getEmail() { return email; }
     public void setEmail(Boolean email) { this.email = email; }
 

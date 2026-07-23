@@ -48,6 +48,17 @@ public class PreferencesResponse {
         this.privacy = privacy;
     }
 
+    public PreferencesResponse(PreferencesResponse other) {
+        this.memberId = other.memberId;
+        this.theme = other.theme;
+        this.language = other.language;
+        this.timezone = other.timezone;
+        this.notifications = other.notifications != null ? new Notifications(other.notifications) : null;
+        this.privacy = other.privacy != null ? new Privacy(other.privacy) : null;
+        this.createdAt = other.createdAt;
+        this.updatedAt = other.updatedAt;
+    }
+
     public String getMemberId() { return memberId; }
     public void setMemberId(String memberId) { this.memberId = memberId; }
 
