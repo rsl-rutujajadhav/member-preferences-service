@@ -6,6 +6,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -19,44 +21,41 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import com.example.memberpreferences.config.RateLimitingProperties;
+import com.example.memberpreferences.config.RateLimitingProperties.RateLimitConfig;
+import com.example.memberpreferences.domain.dto.ErrorResponse;
 
 @Component
 @Order(Ordered.HIGHEST_PRECEDENCE + 10)
 public class RateLimitingFilter extends OncePerRequestFilter {
 
     private static final Pattern MEMBER_ID_PATH = Pattern.compile("/v1/preferences/([A-Za-z0-9_-]+)");
-    private static final String RETRY_AFTER = "Retry-After";
 
     private final TokenBucket overallBucket;
+    private final ObjectMapper objectMapper;
     private final Map<String, TokenBucket> memberBuckets = new ConcurrentHashMap<>();
-    private final RateLimitingProperties properties;
+    private final RateLimitConfig perMemberConfig;
 
     public RateLimitingFilter(RateLimitingProperties properties) {
-        this.properties = properties;
-        this.overallBucket = new TokenBucket(
-                properties.getOverall().getCapacity(),
-                properties.getOverall().refillPerSecond());
+        RateLimitConfig overallConfig = properties.getOverall();
+        this.overallBucket = new TokenBucket(overallConfig.getCapacity(), overallConfig.tokensPerSecond());
+        this.perMemberConfig = properties.getPerMember();
+        this.objectMapper = new ObjectMapper();
     }
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,
                                     HttpServletResponse response,
                                     FilterChain chain) throws ServletException, IOException {
-        String path = request.getRequestURI();
-
         if (!overallBucket.tryConsume()) {
-            sendTooManyRequests(response, "Overall rate limit exceeded");
+            writeRateLimitResponse(request, response, "Overall rate limit exceeded");
             return;
         }
 
-        String memberId = extractMemberId(path);
+        String memberId = extractMemberId(request.getRequestURI());
         if (memberId != null) {
-            TokenBucket bucket = memberBuckets.computeIfAbsent(memberId, k ->
-                    new TokenBucket(
-                            properties.getPerMember().getCapacity(),
-                            properties.getPerMember().refillPerSecond()));
+            TokenBucket bucket = bucketForMember(memberId);
             if (!bucket.tryConsume()) {
-                sendTooManyRequests(response, "Rate limit exceeded for member: " + memberId);
+                writeRateLimitResponse(request, response, "Rate limit exceeded for member: " + memberId);
                 return;
             }
         }
@@ -64,16 +63,29 @@ public class RateLimitingFilter extends OncePerRequestFilter {
         chain.doFilter(request, response);
     }
 
+    private TokenBucket bucketForMember(String memberId) {
+        return memberBuckets.computeIfAbsent(memberId, k ->
+                new TokenBucket(perMemberConfig.getCapacity(), perMemberConfig.tokensPerSecond()));
+    }
+
     private static String extractMemberId(String path) {
         Matcher matcher = MEMBER_ID_PATH.matcher(path);
         return matcher.find() ? matcher.group(1) : null;
     }
 
-    private static void sendTooManyRequests(HttpServletResponse response, String detail) throws IOException {
+    private void writeRateLimitResponse(HttpServletRequest request,
+                                         HttpServletResponse response,
+                                         String detail) throws IOException {
         response.setStatus(HttpStatus.TOO_MANY_REQUESTS.value());
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-        response.setHeader(RETRY_AFTER, "1");
-        response.getWriter().write("{\"title\":\"Too Many Requests\",\"status\":429,\"detail\":\""
-                + detail + "\"}");
+        response.setHeader("Retry-After", "1");
+
+        ErrorResponse error = new ErrorResponse(
+                "Too Many Requests",
+                HttpStatus.TOO_MANY_REQUESTS.value(),
+                detail,
+                request.getRequestURI()
+        );
+        objectMapper.writeValue(response.getWriter(), error);
     }
 }

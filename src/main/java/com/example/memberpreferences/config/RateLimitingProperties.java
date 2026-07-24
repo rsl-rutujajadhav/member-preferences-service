@@ -1,7 +1,5 @@
 package com.example.memberpreferences.config;
 
-import java.time.Duration;
-
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.validation.annotation.Validated;
 
@@ -11,32 +9,40 @@ import jakarta.validation.constraints.Positive;
 @ConfigurationProperties(prefix = "preferences.rate-limit")
 public class RateLimitingProperties {
 
-    private Overall overall = new Overall();
-    private PerMember perMember = new PerMember();
+    private RateLimitConfig overall = new RateLimitConfig(100, 100);
+    private RateLimitConfig perMember = new RateLimitConfig(20, 20);
 
-    public Overall getOverall() {
+    public RateLimitConfig getOverall() {
         return overall;
     }
 
-    public void setOverall(Overall overall) {
+    public void setOverall(RateLimitConfig overall) {
         this.overall = overall;
     }
 
-    public PerMember getPerMember() {
+    public RateLimitConfig getPerMember() {
         return perMember;
     }
 
-    public void setPerMember(PerMember perMember) {
+    public void setPerMember(RateLimitConfig perMember) {
         this.perMember = perMember;
     }
 
-    public static class Overall {
+    public static class RateLimitConfig {
 
         @Positive
-        private int capacity = 100;
+        private int capacity;
 
         @Positive
-        private int refillPerMinute = 100;
+        private int refillPerMinute;
+
+        public RateLimitConfig() {
+        }
+
+        public RateLimitConfig(int capacity, int refillPerMinute) {
+            this.capacity = capacity;
+            this.refillPerMinute = refillPerMinute;
+        }
 
         public int getCapacity() {
             return capacity;
@@ -54,36 +60,7 @@ public class RateLimitingProperties {
             this.refillPerMinute = refillPerMinute;
         }
 
-        public double refillPerSecond() {
-            return refillPerMinute / 60.0;
-        }
-    }
-
-    public static class PerMember {
-
-        @Positive
-        private int capacity = 20;
-
-        @Positive
-        private int refillPerMinute = 20;
-
-        public int getCapacity() {
-            return capacity;
-        }
-
-        public void setCapacity(int capacity) {
-            this.capacity = capacity;
-        }
-
-        public int getRefillPerMinute() {
-            return refillPerMinute;
-        }
-
-        public void setRefillPerMinute(int refillPerMinute) {
-            this.refillPerMinute = refillPerMinute;
-        }
-
-        public double refillPerSecond() {
+        public double tokensPerSecond() {
             return refillPerMinute / 60.0;
         }
     }

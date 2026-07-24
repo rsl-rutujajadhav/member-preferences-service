@@ -15,6 +15,7 @@ import com.example.memberpreferences.domain.dto.PreferencesResponse;
 import com.example.memberpreferences.domain.dto.Privacy;
 import com.example.memberpreferences.domain.dto.PrivacyPatch;
 import com.example.memberpreferences.domain.dto.Theme;
+import com.example.memberpreferences.domain.exception.MemberNotFoundException;
 import com.example.memberpreferences.domain.exception.UnprocessableEntityException;
 import com.example.memberpreferences.repository.PreferencesRepository;
 
@@ -66,11 +67,7 @@ public class PreferencesService {
         return getTimer.record(() -> {
             getCounter.increment();
             return repository.findById(memberId)
-                    .orElseGet(() -> {
-                        PreferencesResponse defaults = defaultPreferences(memberId);
-                        log.info("Creating default preferences for member {}", memberId);
-                        return repository.save(memberId, defaults);
-                    });
+                    .orElseThrow(() -> new MemberNotFoundException(memberId));
         });
     }
 
@@ -87,12 +84,9 @@ public class PreferencesService {
                 PreferencesResponse prefs = new PreferencesResponse(memberId, input.getTheme(),
                         input.getLanguage(), input.getTimezone(),
                         input.getNotifications(), input.getPrivacy());
-                if (existing != null && existing.getCreatedAt() != null) {
-                    prefs.setCreatedAt(existing.getCreatedAt());
-                    log.debug("Preserved createdAt {} for member {}", existing.getCreatedAt(), memberId);
-                } else {
-                    prefs.setCreatedAt(now);
-                }
+                prefs.setCreatedAt(existing != null && existing.getCreatedAt() != null
+                        ? existing.getCreatedAt() : now);
+                log.debug("Preserved createdAt {} for member {}", prefs.getCreatedAt(), memberId);
                 prefs.setUpdatedAt(now);
                 return prefs;
             });
@@ -108,40 +102,50 @@ public class PreferencesService {
         return patchTimer.record(() -> {
             patchCounter.increment();
             return repository.compute(memberId, existing -> {
-                PreferencesResponse prefs;
+                PreferencesResponse prefs = existing != null ? existing
+                        : defaultPreferences(memberId);
                 if (existing == null) {
-                    prefs = defaultPreferences(memberId);
                     prefs.setCreatedAt(Instant.now());
                     log.debug("Created default preferences for member {} during patch", memberId);
-                } else {
-                    prefs = existing;
                 }
-                if (input.getTheme() != null) {
-                    prefs.setTheme(input.getTheme());
-                }
-                if (input.getLanguage() != null) {
-                    prefs.setLanguage(input.getLanguage());
-                }
-                if (input.getTimezone() != null) {
-                    prefs.setTimezone(input.getTimezone());
-                }
-                if (input.getNotifications() != null) {
-                    NotificationsPatch n = input.getNotifications();
-                    Notifications en = prefs.getNotifications();
-                    if (n.getEmail() != null) en.setEmail(n.getEmail());
-                    if (n.getSms() != null) en.setSms(n.getSms());
-                    if (n.getPush() != null) en.setPush(n.getPush());
-                }
-                if (input.getPrivacy() != null) {
-                    PrivacyPatch p = input.getPrivacy();
-                    Privacy ep = prefs.getPrivacy();
-                    if (p.getProfileVisibility() != null) ep.setProfileVisibility(p.getProfileVisibility());
-                    if (p.getShowOnlineStatus() != null) ep.setShowOnlineStatus(p.getShowOnlineStatus());
-                }
+                applyPatchFields(prefs, input);
                 prefs.setUpdatedAt(Instant.now());
                 return prefs;
             });
         });
+    }
+
+    private static void applyPatchFields(PreferencesResponse prefs, PreferencesPatchInput input) {
+        if (input.getTheme() != null) {
+            prefs.setTheme(input.getTheme());
+        }
+        if (input.getLanguage() != null) {
+            prefs.setLanguage(input.getLanguage());
+        }
+        if (input.getTimezone() != null) {
+            prefs.setTimezone(input.getTimezone());
+        }
+        applyNotificationPatch(prefs, input.getNotifications());
+        applyPrivacyPatch(prefs, input.getPrivacy());
+    }
+
+    private static void applyNotificationPatch(PreferencesResponse prefs, NotificationsPatch patch) {
+        if (patch == null) {
+            return;
+        }
+        Notifications target = prefs.getNotifications();
+        if (patch.getEmail() != null) target.setEmail(patch.getEmail());
+        if (patch.getSms() != null) target.setSms(patch.getSms());
+        if (patch.getPush() != null) target.setPush(patch.getPush());
+    }
+
+    private static void applyPrivacyPatch(PreferencesResponse prefs, PrivacyPatch patch) {
+        if (patch == null) {
+            return;
+        }
+        Privacy target = prefs.getPrivacy();
+        if (patch.getProfileVisibility() != null) target.setProfileVisibility(patch.getProfileVisibility());
+        if (patch.getShowOnlineStatus() != null) target.setShowOnlineStatus(patch.getShowOnlineStatus());
     }
 
     private PreferencesResponse defaultPreferences(String memberId) {

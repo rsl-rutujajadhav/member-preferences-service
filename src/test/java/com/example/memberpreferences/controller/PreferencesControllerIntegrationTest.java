@@ -30,19 +30,13 @@ class PreferencesControllerIntegrationTest {
     private MockMvc mockMvc;
 
     @Test
-    void getNewMember_returnsDefaults() throws Exception {
-        String memberId = "intg_get_defaults_" + System.nanoTime();
+    void getNewMember_returns404() throws Exception {
+        String memberId = "intg_get_missing_" + System.nanoTime();
         mockMvc.perform(get("/v1/preferences/{memberId}", memberId))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.memberId").value(memberId))
-                .andExpect(jsonPath("$.theme").value("SYSTEM"))
-                .andExpect(jsonPath("$.language").value("en-US"))
-                .andExpect(jsonPath("$.timezone").value("UTC"))
-                .andExpect(jsonPath("$.notifications.email").value(true))
-                .andExpect(jsonPath("$.notifications.sms").value(true))
-                .andExpect(jsonPath("$.notifications.push").value(true))
-                .andExpect(jsonPath("$.privacy.profileVisibility").value("PUBLIC"))
-                .andExpect(jsonPath("$.privacy.showOnlineStatus").value(true));
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.title").value("Not Found"))
+                .andExpect(jsonPath("$.status").value(404))
+                .andExpect(jsonPath("$.detail").value("No member found with id " + memberId));
     }
 
     @Test

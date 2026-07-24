@@ -24,8 +24,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleValidationError(
             MethodArgumentNotValidException ex, HttpServletRequest request) {
         String detail = ex.getBindingResult().getFieldErrors().stream()
-                .map(e -> e.getField() + ": " + e.getDefaultMessage())
-                .collect(java.util.stream.Collectors.joining("; "));
+                .collect(joinErrors(e -> e.getField() + ": " + e.getDefaultMessage()));
         return buildResponse(HttpStatus.BAD_REQUEST, "Validation Error", detail, request);
     }
 
@@ -33,9 +32,16 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleConstraintViolation(
             ConstraintViolationException ex, HttpServletRequest request) {
         String detail = ex.getConstraintViolations().stream()
-                .map(v -> v.getPropertyPath() + ": " + v.getMessage())
-                .collect(java.util.stream.Collectors.joining("; "));
+                .collect(joinErrors(v -> v.getPropertyPath() + ": " + v.getMessage()));
         return buildResponse(HttpStatus.BAD_REQUEST, "Validation Error", detail, request);
+    }
+
+    private static <T> java.util.stream.Collector<T, ?, String> joinErrors(
+            java.util.function.Function<T, String> mapper) {
+        return java.util.stream.Collectors.collectingAndThen(
+                java.util.stream.Collectors.mapping(mapper,
+                        java.util.stream.Collectors.joining("; ")),
+                s -> s.isEmpty() ? null : s);
     }
 
     @ExceptionHandler(HttpMessageNotReadableException.class)

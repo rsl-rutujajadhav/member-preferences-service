@@ -34,9 +34,19 @@ curl http://localhost:8080/v1/preferences/usr_a1b2c3d4
 ```
 
 Response:
-- `200 OK`
-- Returns the stored preferences for the member
-- If the member does not yet exist, the service returns a default preferences payload
+- `200 OK` when the member already exists and has stored preferences
+- `404 Not Found` when the member does not yet exist
+- Example not-found response:
+
+```json
+{
+  "type": "about:blank",
+  "title": "Not Found",
+  "status": 404,
+  "detail": "No member found with id usr_a1b2c3d4",
+  "instance": "/v1/preferences/usr_a1b2c3d4"
+}
+```
 
 ### 2. Create or replace preferences
 
@@ -129,7 +139,8 @@ Language:
 - Format: `xx-YY` such as `en-US`, `fr-FR`
 
 Timezone:
-- Format expected by validation: `Area/City`, such as `UTC`, `Europe/Paris`, `America/New_York`
+- Format expected by validation: `Area/City`, such as `Europe/Paris`, `America/New_York`, `Asia/Tokyo`
+- Note: flat names like `UTC` are not accepted by input validation (must contain `/`)
 
 Privacy visibility:
 - `PUBLIC`
@@ -144,7 +155,8 @@ All errors are returned as JSON matching the RFC 7807 Problem Details format:
 |--------|-------|------|
 | 400 | Validation Error | Invalid `memberId`, missing or invalid request body fields |
 | 400 | Malformed Request Body | Unparseable JSON or invalid enum values |
-| 404 | Not Found | Resource at the requested URL does not exist |
+| 404 | Not Found | Member does not exist yet or the requested route does not exist |
+| 429 | Too Many Requests | Rate limit exceeded (overall or per-member) |
 | 500 | Internal Server Error | Unexpected server-side failure |
 
 Example error payload:
@@ -159,6 +171,30 @@ Example error payload:
 }
 ```
 
+### Rate limiting (429)
+
+When a client exceeds the rate limit, the service responds with `429 Too Many Requests`:
+
+```bash
+# Simulate a burst: rapid requests cause 429 after exhausting the bucket
+for i in $(seq 1 110); do
+  curl -s -o /dev/null -w "%{http_code}\n" http://localhost:8080/v1/preferences/usr_$i
+done | sort | uniq -c
+# Output shows ~100x 200 and ~10x 429
+```
+
+Response:
+```json
+{
+  "title": "Too Many Requests",
+  "status": 429,
+  "detail": "Overall rate limit exceeded",
+  "type": "about:blank"
+}
+```
+
+The `Retry-After: 1` header indicates the client should wait at least one second before retrying.
+
 ## Configuration
 
 Feature flags and service settings are managed via `@ConfigurationProperties` bound to `application.yml`.
@@ -166,6 +202,20 @@ Feature flags and service settings are managed via `@ConfigurationProperties` bo
 | Property | Default | Description |
 |----------|---------|-------------|
 | `preferences.patch.enabled` | `true` | Enables or disables the PATCH endpoint |
+| `preferences.rate-limit.overall.capacity` | `100` | Max overall requests in a burst before 429 |
+| `preferences.rate-limit.overall.refill-per-minute` | `100` | Overall token refill rate per minute |
+| `preferences.rate-limit.per-member.capacity` | `20` | Max requests per memberId in a burst before 429 |
+| `preferences.rate-limit.per-member.refill-per-minute` | `20` | Per-member token refill rate per minute |
+
+Rate limiting uses a token-bucket algorithm. Each request consumes one token. If the bucket is empty, the request is rejected with `429 Too Many Requests` and a `Retry-After: 1` header. There are two independent buckets: one for all requests (overall) and one per `memberId`. A single member cannot starve other members.
+
+Timeout defaults are configured via `application.properties`:
+
+| Property | Default | Description |
+|----------|---------|-------------|
+| `server.tomcat.connection-timeout` | `5s` | Maximum time to wait for a request body |
+| `server.tomcat.keep-alive-timeout` | `30s` | Keep-alive timeout for persistent connections |
+| `server.tomcat.threads.max` | `200` | Maximum number of worker threads |
 
 To disable patching (e.g. during maintenance):
 
@@ -231,6 +281,8 @@ Current test status:
 - Spring Boot context load test
 - Concurrency tests (concurrent patch, upsert, read isolation)
 - HTTP integration tests for error responses (400, 404, validation details)
+- HTTP integration tests for happy path: PUT upsert (201/200), GET defaults, PATCH partial update
+- Rate limiting tests: overall burst → 429, per-member burst → 429, member isolation
 - Feature flag test (PATCH disabled via `dev` profile returns 422)
 - Config properties binding and actuator `/configprops` exposure
 - Micrometer metrics (counters, timers) and structured JSON logging with correlation ID
@@ -243,7 +295,7 @@ Current test status:
 - `src/main/java/.../config` – `@ConfigurationProperties` classes and feature flags
 - `src/main/java/.../domain/dto` – request/response models and error response DTO
 - `src/main/java/.../domain/exception` – custom exception types
-- `src/main/java/.../filter` – servlet filters (correlation ID)
+- `src/main/java/.../filter` – servlet filters (correlation ID, rate limiting, token bucket)
 - `src/main/resources/application.yml` – default config
 - `src/main/resources/application-dev.yml` – dev profile override
 - `src/main/resources/logback-spring.xml` – structured JSON logging

@@ -22,7 +22,7 @@ public class InMemoryPreferencesRepository implements PreferencesRepository {
 
     @Override
     public PreferencesResponse save(String memberId, PreferencesResponse prefs) {
-        store.put(memberId, prefs);
+        store.put(memberId, new PreferencesResponse(prefs));
         return prefs;
     }
 
@@ -33,6 +33,9 @@ public class InMemoryPreferencesRepository implements PreferencesRepository {
 
     @Override
     public PreferencesResponse compute(String memberId, UnaryOperator<PreferencesResponse> remappingFunction) {
-        return store.compute(memberId, (k, v) -> remappingFunction.apply(v));
+        return store.compute(memberId, (k, v) -> {
+            PreferencesResponse result = remappingFunction.apply(v);
+            return result != null ? new PreferencesResponse(result) : null;
+        });
     }
 }

@@ -41,6 +41,13 @@ class PatchFeatureFlagTest {
 
     @Test
     void getAndPutStillWorkWhenPatchDisabled() throws Exception {
+        mockMvc.perform(put("/v1/preferences/usr_test")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"theme\":\"LIGHT\",\"language\":\"en-US\",\"timezone\":\"America/New_York\","
+                                + "\"notifications\":{\"email\":true,\"sms\":true,\"push\":true},"
+                                + "\"privacy\":{\"profileVisibility\":\"PUBLIC\",\"showOnlineStatus\":true}}"))
+                .andExpect(status().isCreated());
+
         mockMvc.perform(get("/v1/preferences/usr_test"))
                 .andExpect(status().isOk());
 

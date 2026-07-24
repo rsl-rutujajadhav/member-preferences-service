@@ -10,6 +10,12 @@ class TokenBucket {
     private volatile long lastRefillNanos;
 
     TokenBucket(int capacity, double refillPerSecond) {
+        if (capacity <= 0) {
+            throw new IllegalArgumentException("capacity must be positive: " + capacity);
+        }
+        if (refillPerSecond <= 0) {
+            throw new IllegalArgumentException("refillPerSecond must be positive: " + refillPerSecond);
+        }
         this.capacity = capacity;
         this.refillPerSecond = refillPerSecond;
         this.tokens = new AtomicLong(capacity);
