@@ -8,6 +8,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
+import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.MockMvc;
 
 @SpringBootTest
@@ -195,5 +196,142 @@ class PreferencesControllerIntegrationTest {
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.title").value("Not Found"))
                 .andExpect(jsonPath("$.status").value(404));
+    }
+
+    @Test
+    void get_returnsEtagHeader() throws Exception {
+        String memberId = "intg_etag_header_" + System.nanoTime();
+        mockMvc.perform(put("/v1/preferences/{memberId}", memberId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(VALID_PUT))
+                .andExpect(status().isCreated());
+
+        mockMvc.perform(get("/v1/preferences/{memberId}", memberId))
+                .andExpect(status().isOk())
+                .andExpect(header().exists("ETag"))
+                .andExpect(header().string("ETag", org.hamcrest.Matchers.startsWith("\"")));
+    }
+
+    @Test
+    void getWithMatchingIfNoneMatch_returns304() throws Exception {
+        String memberId = "intg_etag_304_" + System.nanoTime();
+        mockMvc.perform(put("/v1/preferences/{memberId}", memberId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(VALID_PUT))
+                .andExpect(status().isCreated());
+
+        MvcResult result = mockMvc.perform(get("/v1/preferences/{memberId}", memberId))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        String etag = result.getResponse().getHeader("ETag");
+
+        mockMvc.perform(get("/v1/preferences/{memberId}", memberId)
+                        .header("If-None-Match", etag))
+                .andExpect(status().isNotModified())
+                .andExpect(header().string("ETag", etag));
+    }
+
+    @Test
+    void getWithNonMatchingIfNoneMatch_returns200() throws Exception {
+        String memberId = "intg_etag_200_" + System.nanoTime();
+        mockMvc.perform(put("/v1/preferences/{memberId}", memberId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(VALID_PUT))
+                .andExpect(status().isCreated());
+
+        mockMvc.perform(get("/v1/preferences/{memberId}", memberId)
+                        .header("If-None-Match", "\"non-matching-etag\""))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.theme").value("DARK"));
+    }
+
+    @Test
+    void putWithMatchingIfMatch_succeeds() throws Exception {
+        String memberId = "intg_ifmatch_ok_" + System.nanoTime();
+        mockMvc.perform(put("/v1/preferences/{memberId}", memberId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(VALID_PUT))
+                .andExpect(status().isCreated());
+
+        MvcResult result = mockMvc.perform(get("/v1/preferences/{memberId}", memberId))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        String etag = result.getResponse().getHeader("ETag");
+
+        mockMvc.perform(put("/v1/preferences/{memberId}", memberId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(VALID_PUT_2)
+                        .header("If-Match", etag))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void putWithNonMatchingIfMatch_returns412() throws Exception {
+        String memberId = "intg_ifmatch_412_" + System.nanoTime();
+        mockMvc.perform(put("/v1/preferences/{memberId}", memberId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(VALID_PUT))
+                .andExpect(status().isCreated());
+
+        mockMvc.perform(put("/v1/preferences/{memberId}", memberId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(VALID_PUT_2)
+                        .header("If-Match", "\"wrong-etag\""))
+                .andExpect(status().isPreconditionFailed())
+                .andExpect(jsonPath("$.title").value("Precondition Failed"))
+                .andExpect(jsonPath("$.status").value(412));
+    }
+
+    @Test
+    void putOnNewResourceWithIfMatchStar_returns412() throws Exception {
+        String memberId = "intg_ifmatch_star_" + System.nanoTime();
+        mockMvc.perform(put("/v1/preferences/{memberId}", memberId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(VALID_PUT)
+                        .header("If-Match", "*"))
+                .andExpect(status().isPreconditionFailed())
+                .andExpect(jsonPath("$.title").value("Precondition Failed"))
+                .andExpect(jsonPath("$.status").value(412));
+    }
+
+    @Test
+    void patchWithMatchingIfMatch_succeeds() throws Exception {
+        String memberId = "intg_patch_ifmatch_ok_" + System.nanoTime();
+        mockMvc.perform(put("/v1/preferences/{memberId}", memberId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(VALID_PUT))
+                .andExpect(status().isCreated());
+
+        MvcResult result = mockMvc.perform(get("/v1/preferences/{memberId}", memberId))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        String etag = result.getResponse().getHeader("ETag");
+
+        mockMvc.perform(patch("/v1/preferences/{memberId}", memberId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"theme\":\"LIGHT\"}")
+                        .header("If-Match", etag))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.theme").value("LIGHT"));
+    }
+
+    @Test
+    void patchWithNonMatchingIfMatch_returns412() throws Exception {
+        String memberId = "intg_patch_ifmatch_412_" + System.nanoTime();
+        mockMvc.perform(put("/v1/preferences/{memberId}", memberId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(VALID_PUT))
+                .andExpect(status().isCreated());
+
+        mockMvc.perform(patch("/v1/preferences/{memberId}", memberId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"theme\":\"LIGHT\"}")
+                        .header("If-Match", "\"wrong-etag\""))
+                .andExpect(status().isPreconditionFailed())
+                .andExpect(jsonPath("$.title").value("Precondition Failed"))
+                .andExpect(jsonPath("$.status").value(412));
     }
 }

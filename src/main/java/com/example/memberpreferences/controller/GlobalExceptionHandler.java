@@ -15,6 +15,7 @@ import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import com.example.memberpreferences.domain.dto.ErrorResponse;
 import com.example.memberpreferences.domain.exception.MemberNotFoundException;
+import com.example.memberpreferences.domain.exception.PreconditionFailedException;
 import com.example.memberpreferences.domain.exception.UnprocessableEntityException;
 
 @RestControllerAdvice
@@ -83,6 +84,13 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleUnprocessableEntity(
             UnprocessableEntityException ex, HttpServletRequest request) {
         return buildResponse(HttpStatus.UNPROCESSABLE_ENTITY, "Unprocessable Entity",
+                ex.getMessage(), request);
+    }
+
+    @ExceptionHandler(PreconditionFailedException.class)
+    public ResponseEntity<ErrorResponse> handlePreconditionFailed(
+            PreconditionFailedException ex, HttpServletRequest request) {
+        return buildResponse(HttpStatus.PRECONDITION_FAILED, "Precondition Failed",
                 ex.getMessage(), request);
     }
 

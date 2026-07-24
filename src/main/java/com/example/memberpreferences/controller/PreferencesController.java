@@ -12,13 +12,16 @@ import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.example.memberpreferences.domain.dto.PreferencesInput;
 import com.example.memberpreferences.domain.dto.PreferencesPatchInput;
 import com.example.memberpreferences.domain.dto.PreferencesResponse;
+import com.example.memberpreferences.domain.exception.PreconditionFailedException;
 import com.example.memberpreferences.service.PreferencesService;
+import com.example.memberpreferences.util.EtagGenerator;
 
 @RestController
 @RequestMapping("/v1/preferences")
@@ -26,18 +29,31 @@ import com.example.memberpreferences.service.PreferencesService;
 public class PreferencesController {
 
     private final PreferencesService service;
+    private final EtagGenerator etagGenerator;
 
-    public PreferencesController(PreferencesService service) {
+    public PreferencesController(PreferencesService service, EtagGenerator etagGenerator) {
         this.service = service;
+        this.etagGenerator = etagGenerator;
     }
 
     @GetMapping("/{memberId}")
-    public PreferencesResponse getPreferences(
+    public ResponseEntity<PreferencesResponse> getPreferences(
             @PathVariable
             @Pattern(regexp = "^[A-Za-z0-9_-]+$")
             @Size(min = 1, max = 64)
-            String memberId) {
-        return service.get(memberId);
+            String memberId,
+            @RequestHeader(name = "If-None-Match", required = false)
+            String ifNoneMatch) {
+        PreferencesResponse prefs = service.get(memberId);
+        String etag = etagGenerator.strongEtag(prefs);
+        if (ifNoneMatch != null && etagMatches(ifNoneMatch, etag)) {
+            return ResponseEntity.status(HttpStatus.NOT_MODIFIED)
+                    .eTag(etag)
+                    .build();
+        }
+        return ResponseEntity.ok()
+                .eTag(etag)
+                .body(prefs);
     }
 
     @PutMapping("/{memberId}")
@@ -46,22 +62,62 @@ public class PreferencesController {
             @Pattern(regexp = "^[A-Za-z0-9_-]+$")
             @Size(min = 1, max = 64)
             String memberId,
-            @Valid @RequestBody PreferencesInput input) {
+            @Valid @RequestBody PreferencesInput input,
+            @RequestHeader(name = "If-Match", required = false)
+            String ifMatch) {
         boolean isNew = !service.exists(memberId);
-        PreferencesResponse result = service.createOrReplace(memberId, input);
-        if (isNew) {
-            return ResponseEntity.status(HttpStatus.CREATED).body(result);
+        if (ifMatch != null && !isNew) {
+            PreferencesResponse current = service.get(memberId);
+            String currentEtag = etagGenerator.strongEtag(current);
+            if (!etagMatches(ifMatch, currentEtag)) {
+                throw new PreconditionFailedException(
+                        "Resource ETag does not match If-Match header");
+            }
         }
-        return ResponseEntity.ok(result);
+        if (ifMatch != null && isNew) {
+            throw new PreconditionFailedException(
+                    "Resource does not exist for If-Match precondition");
+        }
+        PreferencesResponse result = service.createOrReplace(memberId, input);
+        String etag = etagGenerator.strongEtag(result);
+        if (isNew) {
+            return ResponseEntity.status(HttpStatus.CREATED)
+                    .eTag(etag)
+                    .body(result);
+        }
+        return ResponseEntity.ok()
+                .eTag(etag)
+                .body(result);
     }
 
     @PatchMapping("/{memberId}")
-    public PreferencesResponse patchPreferences(
+    public ResponseEntity<PreferencesResponse> patchPreferences(
             @PathVariable
             @Pattern(regexp = "^[A-Za-z0-9_-]+$")
             @Size(min = 1, max = 64)
             String memberId,
-            @Valid @RequestBody PreferencesPatchInput input) {
-        return service.patch(memberId, input);
+            @Valid @RequestBody PreferencesPatchInput input,
+            @RequestHeader(name = "If-Match", required = false)
+            String ifMatch) {
+        if (ifMatch != null) {
+            PreferencesResponse current = service.get(memberId);
+            String currentEtag = etagGenerator.strongEtag(current);
+            if (!etagMatches(ifMatch, currentEtag)) {
+                throw new PreconditionFailedException(
+                        "Resource ETag does not match If-Match header");
+            }
+        }
+        PreferencesResponse result = service.patch(memberId, input);
+        String etag = etagGenerator.strongEtag(result);
+        return ResponseEntity.ok()
+                .eTag(etag)
+                .body(result);
+    }
+
+    private static boolean etagMatches(String requestEtag, String currentEtag) {
+        if ("*".equals(requestEtag.trim())) {
+            return true;
+        }
+        return currentEtag.equals(requestEtag.trim());
     }
 }
